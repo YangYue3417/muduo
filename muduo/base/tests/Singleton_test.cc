@@ -2,19 +2,21 @@
 #include "muduo/base/CurrentThread.h"
 #include "muduo/base/Thread.h"
 
-#include <stdio.h>
+#include <iostream>
 
 class Test : muduo::noncopyable
 {
  public:
   Test()
   {
-    printf("tid=%d, constructing %p\n", muduo::CurrentThread::tid(), this);
+    std::cout << "tid=" << muduo::CurrentThread::tid()
+              << ", constructing " << this << std::endl;
   }
 
   ~Test()
   {
-    printf("tid=%d, destructing %p %s\n", muduo::CurrentThread::tid(), this, name_.c_str());
+    std::cout << "tid=" << muduo::CurrentThread::tid()
+              << ", destructing " << this << ' ' << name_ << std::endl;
   }
 
   const muduo::string& name() const { return name_; }
@@ -32,21 +34,23 @@ class TestNoDestroy : muduo::noncopyable
 
   TestNoDestroy()
   {
-    printf("tid=%d, constructing TestNoDestroy %p\n", muduo::CurrentThread::tid(), this);
+    std::cout << "tid=" << muduo::CurrentThread::tid()
+              << ", constructing TestNoDestroy " << this << std::endl;
   }
 
   ~TestNoDestroy()
   {
-    printf("tid=%d, destructing TestNoDestroy %p\n", muduo::CurrentThread::tid(), this);
+    std::cout << "tid=" << muduo::CurrentThread::tid()
+              << ", destructing TestNoDestroy " << this << std::endl;
   }
 };
 
 void threadFunc()
 {
-  printf("tid=%d, %p name=%s\n",
-         muduo::CurrentThread::tid(),
-         &muduo::Singleton<Test>::instance(),
-         muduo::Singleton<Test>::instance().name().c_str());
+  std::cout << "tid=" << muduo::CurrentThread::tid()
+            << ", " << &muduo::Singleton<Test>::instance()
+            << " name=" << muduo::Singleton<Test>::instance().name()
+            << std::endl;
   muduo::Singleton<Test>::instance().setName("only one, changed");
 }
 
@@ -56,10 +60,11 @@ int main()
   muduo::Thread t1(threadFunc);
   t1.start();
   t1.join();
-  printf("tid=%d, %p name=%s\n",
-         muduo::CurrentThread::tid(),
-         &muduo::Singleton<Test>::instance(),
-         muduo::Singleton<Test>::instance().name().c_str());
+  std::cout << "tid=" << muduo::CurrentThread::tid()
+            << ", " << &muduo::Singleton<Test>::instance()
+            << " name=" << muduo::Singleton<Test>::instance().name()
+            << std::endl;
   muduo::Singleton<TestNoDestroy>::instance();
-  printf("with valgrind, you should see %zd-byte memory leak.\n", sizeof(TestNoDestroy));
+  std::cout << "with valgrind, you should see " << sizeof(TestNoDestroy)
+            << "-byte memory leak." << std::endl;
 }

@@ -10,6 +10,7 @@
 
 #include <assert.h>
 #include <pthread.h>
+#include <type_traits>
 #include <stdlib.h> // atexit
 
 namespace muduo
@@ -17,15 +18,17 @@ namespace muduo
 
 namespace detail
 {
-// This doesn't detect inherited member functions!
-// http://stackoverflow.com/questions/1966362/sfinae-to-check-for-inherited-member-functions
+template<typename T, typename = void>
+struct has_no_destroy : std::false_type {};
+
 template<typename T>
-struct has_no_destroy
-{
-  template <typename C> static char test(decltype(&C::no_destroy));
-  template <typename C> static int32_t test(...);
-  const static bool value = sizeof(test<T>(0)) == 1;
-};
+struct has_no_destroy<T, std::void_t<decltype(&T::no_destroy)>> : std::true_type {};
+
+template<typename T, typename = void>
+struct is_complete : std::false_type {};
+
+template<typename T>
+struct is_complete<T, std::void_t<decltype(sizeof(T))>> : std::true_type {};
 }  // namespace detail
 
 template<typename T>
@@ -46,7 +49,7 @@ class Singleton : noncopyable
   static void init()
   {
     value_ = new T();
-    if (!detail::has_no_destroy<T>::value)
+    if constexpr (!detail::has_no_destroy<T>::value)
     {
       ::atexit(destroy);
     }
@@ -54,11 +57,10 @@ class Singleton : noncopyable
 
   static void destroy()
   {
-    typedef char T_must_be_complete_type[sizeof(T) == 0 ? -1 : 1];
-    T_must_be_complete_type dummy; (void) dummy;
-
+    static_assert(detail::is_complete<T>::value,
+                  "Singleton::destroy() T must be complete type");
     delete value_;
-    value_ = NULL;
+    value_ = nullptr;
   }
 
  private:
@@ -70,7 +72,7 @@ template<typename T>
 pthread_once_t Singleton<T>::ponce_ = PTHREAD_ONCE_INIT;
 
 template<typename T>
-T* Singleton<T>::value_ = NULL;
+T* Singleton<T>::value_ = nullptr;
 
 }  // namespace muduo
 
